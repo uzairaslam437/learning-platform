@@ -53,8 +53,8 @@ const initDb = async () => {
             s3_bucket VARCHAR(100) NOT NULL,
             upload_order INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );`);
-        
+        );
+            `);
     console.log("Database initialized successfully.");
   } catch (error) {
     console.error("Error initializing database:", error);
