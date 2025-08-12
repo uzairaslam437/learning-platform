@@ -55,6 +55,17 @@ const initDb = async () => {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
             `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS enrollments (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        enrollment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        access_expires_at TIMESTAMP, -- for time-limited access
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'completed')),
+        UNIQUE(student_id, course_id) -- Prevent duplicate enrollments
+    );`);
+
     console.log("Database initialized successfully.");
   } catch (error) {
     console.error("Error initializing database:", error);

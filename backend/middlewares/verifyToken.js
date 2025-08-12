@@ -17,8 +17,8 @@ const verifyAccessToken = async (req,res,next) => {
     }
     catch(error){
         console.error("Error verifying access token:", error);
-        res.status(401).json({ error: "Unauthorized" });
+        res.status(401).json({ error: "Unauthorizedd" });
     }
 }
 
-module.exports = verifyAccessToken;
+module.exports = {verifyAccessToken};
