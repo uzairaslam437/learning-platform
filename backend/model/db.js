@@ -66,6 +66,22 @@ const initDb = async () => {
         UNIQUE(student_id, course_id) -- Prevent duplicate enrollments
     );`);
 
+    await client.query(`
+        CREATE TABLE IF NOT EXISTS payments (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+          stripe_payment_intent_id VARCHAR(255) UNIQUE,
+          stripe_session_id VARCHAR(255),
+          amount DECIMAL(10,2) NOT NULL,
+          currency VARCHAR(3) DEFAULT 'USD',
+          status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
+          payment_method VARCHAR(50),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          completed_at TIMESTAMP,
+          metadata JSONB -- Store additional payment data
+      );`)
+
     console.log("Database initialized successfully.");
   } catch (error) {
     console.error("Error initializing database:", error);
