@@ -57,9 +57,16 @@ const signIn = async (req, res) => {
         if (!isPasswordValid) {
             return res.status(401).json({ message: "Invalid password" });
         }
+        const userDetails = {
+            id: user.id,
+            email: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            role: user.role
+        };
 
         const {accessToken,refreshToken} = await generateTokens(user);
-        res.status(200).json({ message: "Login successful", accessToken, refreshToken });
+        res.status(200).json({ message: "Login successful", accessToken, refreshToken, user: userDetails });
     } catch (error) {
         console.error("Error signing in user:", error);
         res.status(500).json({ error: "Internal server error" });

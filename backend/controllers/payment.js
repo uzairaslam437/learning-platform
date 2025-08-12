@@ -373,8 +373,8 @@ const verifyCourseAccess = async (req, res) => {
       `SELECT e.*, p.status as payment_status, p.completed_at as payment_date
        FROM enrollments e
        LEFT JOIN payments p ON e.student_id = p.student_id AND e.course_id = p.course_id
-       WHERE e.student_id = $1 AND e.course_id = $2`,
-      [userId, courseId]
+       WHERE e.student_id = $1 AND e.course_id = $2 AND p.status = $3`,
+      [userId, courseId,"completed"]
     );
 
     if (enrollmentResult.rows.length === 0) {
