@@ -1,11 +1,12 @@
 // src/components/CourseDetail.tsx
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BookOpen, Users, Clock, Download, Play, ShoppingCart, CheckCircle } from 'lucide-react';
+import { ArrowLeft, BookOpen, Users, Clock, Play, ShoppingCart, CheckCircle, Eye } from 'lucide-react';
 import { useAuth } from '../hooks/Auth';
 import type { AppPage } from '../types/Auth';
 import type { Course, CourseMaterial, EnrollmentStatus } from '../types/course';
 import { courseAPI } from '../services/courseAPI';
 import { paymentAPI } from '../services/payment';
+import { FileViewer } from './FileViewer';
 
 interface CourseDetailProps {
   onNavigate: (page: AppPage) => void;
@@ -19,7 +20,9 @@ export const CourseDetail: React.FC<CourseDetailProps> = ({ onNavigate, params }
   const [enrollmentStatus, setEnrollmentStatus] = useState<EnrollmentStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
-  const [error, setError] = useState<unknown>('');
+  const [error, setError] = useState<string>('');
+  const [selectedMaterial, setSelectedMaterial] = useState<CourseMaterial | null>(null);
+  const [isFileViewerOpen, setIsFileViewerOpen] = useState(false);
 
   const courseId = params?.courseId || '';
   const isInstructorView = params?.isInstructor || false;
@@ -30,48 +33,51 @@ export const CourseDetail: React.FC<CourseDetailProps> = ({ onNavigate, params }
     }
   }, [courseId]);
 
-  // ...existing code...
-const loadCourseData = async () => {
-  try {
-    setLoading(true);
-    setError('');
+  const loadCourseData = async () => {
+    try {
+      setLoading(true);
+      setError('');
 
-    // Load course details
-    const courseData = await courseAPI.getCourseById(courseId);
-    setCourse(courseData.course);
+      // Load course details
+      const courseData = await courseAPI.getCourseById(courseId);
+      setCourse(courseData.course);
 
-    // Check enrollment status (for students)
-    if (user?.role === 'student' && !isInstructorView) {
-      const statusData = await courseAPI.checkEnrollmentStatus(courseId);
+      // Check enrollment status (for students)
+      if (user?.role === 'student' && !isInstructorView) {
+        const statusData = await courseAPI.checkEnrollmentStatus(courseId);
 
-      console.log("StatusData:",statusData)
+        console.log("StatusData:",statusData)
 
-      // If API returns an error, display it
-      if ('error' in statusData) {
-        setError(statusData.error);
-        setEnrollmentStatus(statusData); // Optionally set status
-        return;
-      }
+        // If API returns an error, display it
+        if ('error' in statusData && typeof statusData.error === 'string') {
+          setError(statusData.error);
+          setEnrollmentStatus(statusData as EnrollmentStatus); // Optionally set status
+          return;
+        }
 
-      setEnrollmentStatus(statusData);
+        setEnrollmentStatus(statusData);
 
-      // Load materials if user has access
-      if (statusData.hasAccess) {
+        // Load materials if user has access
+        if (statusData.hasAccess) {
+          const materialsData = await courseAPI.getCourseMaterials(courseId);
+          console.log('Materials data received:', materialsData);
+          console.log('Individual materials:', materialsData.materials);
+          setMaterials(materialsData.materials);
+        }
+      } else if (user?.role === 'instructor' || isInstructorView) {
+        // Instructors can always see materials
         const materialsData = await courseAPI.getCourseMaterials(courseId);
+        console.log('Materials data received (instructor):', materialsData);
+        console.log('Individual materials:', materialsData.materials);
         setMaterials(materialsData.materials);
       }
-    } else if (user?.role === 'instructor' || isInstructorView) {
-      // Instructors can always see materials
-      const materialsData = await courseAPI.getCourseMaterials(courseId);
-      setMaterials(materialsData.materials);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load course data';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    setError(err.message || 'Failed to load course data');
-  } finally {
-    setLoading(false);
-  }
-};
-// ...existing code...
+  };
 
   const handlePurchaseCourse = async () => {
     if (!course) return;
@@ -85,32 +91,50 @@ const loadCourseData = async () => {
       });
       
       // Redirect to Stripe checkout
-      window.location.href = paymentData.url;
-      setError(paymentData.error)
+      if (paymentData.checkoutUrl) {
+        window.location.href = paymentData.checkoutUrl;
+      } else {
+        setError('Failed to create checkout session');
+      }
     } catch (error) {
-    setError(error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create payment session';
+      setError(errorMessage);
       console.error('Error creating payment session:', error);
-    //   alert('Failed to initiate payment. Please try again.');
     } finally {
       setPurchasing(false);
     }
   };
 
-  const handleDownloadMaterial = (material: CourseMaterial) => {
-    if (material.signed_url) {
-      const link = document.createElement('a');
-      link.href = material.signed_url;
-      link.download = material.original_filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+  const handleViewMaterial = (material: CourseMaterial) => {
+    console.log('Opening file viewer for:', material);
+    console.log('File type:', material.file_type);
+    console.log('File URL:', material.download_url);
+    setSelectedMaterial(material);
+    setIsFileViewerOpen(true);
   };
+
+  const handleCloseFileViewer = () => {
+    setIsFileViewerOpen(false);
+    setSelectedMaterial(null);
+  };
+
+
 
   const getFileIcon = (fileType: string) => {
     if (fileType.startsWith('video/')) return <Play className="h-5 w-5 text-blue-500" />;
     if (fileType.startsWith('image/')) return <BookOpen className="h-5 w-5 text-green-500" />;
-    return <Download className="h-5 w-5 text-red-500" />;
+    return <BookOpen className="h-5 w-5 text-red-500" />;
+  };
+
+  const canPreviewFile = (fileType: string) => {
+    return fileType.startsWith('video/') || 
+           fileType.startsWith('image/') || 
+           fileType.includes('pdf') ||
+           fileType.includes('document') ||
+           fileType.includes('word') ||
+           fileType.includes('text') ||
+           fileType.includes('spreadsheet') ||
+           fileType.includes('presentation');
   };
 
   if (loading) {
@@ -237,13 +261,22 @@ const loadCourseData = async () => {
                             </p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDownloadMaterial(material)}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-sm flex items-center"
-                        >
-                          <Download className="mr-1 h-4 w-4" />
-                          Download
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          {canPreviewFile(material.file_type) ? (
+                            <button
+                              onClick={() => handleViewMaterial(material)}
+                              className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm flex items-center"
+                              title="View File"
+                            >
+                              <Eye className="mr-1 h-4 w-4" />
+                              View
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400 px-3 py-1">
+                              Preview not available
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -297,7 +330,7 @@ const loadCourseData = async () => {
                     You can manage this course from your instructor dashboard.
                   </p>
                   <button
-                    onClick={() => onNavigate('create-course', { courseId: course.id, mode: 'edit' })}
+                    onClick={() => onNavigate('create-course')}
                     className="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium"
                   >
                     Edit Course
@@ -315,7 +348,7 @@ const loadCourseData = async () => {
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                    Download all resources
+                    View all resources
                   </li>
                   <li className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
@@ -339,6 +372,15 @@ const loadCourseData = async () => {
           </div>
         </div>
       </div>
+
+      {/* File Viewer Modal */}
+      {selectedMaterial && (
+        <FileViewer
+          material={selectedMaterial}
+          isOpen={isFileViewerOpen}
+          onClose={handleCloseFileViewer}
+        />
+      )}
     </div>
   );
 };

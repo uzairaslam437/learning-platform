@@ -1,0 +1,34 @@
+.file-viewer-slider {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  height: 8px;
+  outline: none;
+  transition: background 0.2s;
+}
+
+.file-viewer-slider::-webkit-slider-thumb {
+  appearance: none;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  height: 16px;
+  width: 16px;
+}
+
+.file-viewer-slider::-moz-range-thumb {
+  background: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  height: 16px;
+  width: 16px;
+}
+
+.file-viewer-slider::-ms-thumb {
+  background: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  height: 16px;
+  width: 16px;
+}

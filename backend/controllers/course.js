@@ -401,7 +401,6 @@ const getCourseMaterials = async (req, res) => {
       return {
         ...material,
         download_url: signedUrl,
-        // Don't expose S3 details to client
         s3_key: undefined,
         s3_bucket: undefined,
       };

@@ -23,7 +23,7 @@ export interface CourseMaterial {
   file_type: string;
   s3_key: string;
   upload_date: string;
-  signed_url?: string;
+  download_url?: string;
 }
 
 export interface CreateCoursePayload {

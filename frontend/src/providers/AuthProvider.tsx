@@ -24,15 +24,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           setAccessToken(token);
           setUser(parsedUser);
 
-          // Check token validity with backend
-          const valid = await isValidToken();
-          if (!valid) {
-            logout();
-            return;
-          }
-
           // Set token refresh interval
           const interval = setInterval(refreshAccessToken, 14 * 60 * 1000);
+          
+          // Store interval ID for cleanup
           return () => clearInterval(interval);
         } catch (error) {
           console.error("Error parsing user data:", error);
@@ -44,9 +39,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     verifyAndSetup();
+  }, []); // Empty dependency array to run only once
+
+  // Cleanup effect to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // This will run when component unmounts
+      setLoading(false);
+      setUser(null);
+      setAccessToken(null);
+    };
   }, []);
 
-  // ✅ Login - FIXED: Don't set loading to true for form submissions
   const login = async (
     email: string,
     password: string,
@@ -75,7 +79,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  // ✅ Register - FIXED: Don't set loading to true for form submissions
   const register = async (
     email: string,
     password: string,
@@ -104,7 +107,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  // ✅ Logout
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -112,9 +114,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setAccessToken(null);
   };
 
-  // ✅ Refresh Access Token
   const refreshAccessToken = async () => {
     try {
+      // Prevent multiple simultaneous refresh attempts
+      if (!accessToken) {
+        return;
+      }
+
       const res = await fetch(
         "http://localhost:3000/api/auth/refresh-access-token",
         {
@@ -141,32 +147,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const isValidToken = async (): Promise<boolean> => {
-    try {
-      if (!accessToken) {
-        return false;
-      }
-
-      const res = await fetch(
-        "http://localhost:3000/api/auth/verify-access-token",
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
-      );
-
-      if (!res.ok) {
-        return false;
-      }
-
-      const data = await res.json();
-      return data.message === true;
-    } catch (error) {
-      console.error("Error verifying token:", error);
-      return false;
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -175,7 +155,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         register,
         logout,
         loading,
-        isValidToken,
         accessToken,
       }}
     >

@@ -11,71 +11,95 @@ import type { AppPage } from "./types/Auth";
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<AppPage>("landing");
-  const [pageParams, setPageParams] = useState<any>(null);
-  const [isValid, setIsValid] = useState<boolean>(false);
-  const [hasInitialAuthCheck, setHasInitialAuthCheck] = useState(false);
-  
-  const { user, loading, isValidToken, accessToken } = useAuth();
+  const [pageParams, setPageParams] = useState<{ courseId?: string; mode?: "create" | "edit"; isInstructor?: boolean } | null>(null);
 
-  const handleNavigate = (page: AppPage, params?: any) => {
+  const { user, loading } = useAuth();
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 10000); // 10 seconds timeout
+
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
+
+  const handleNavigate = (page: AppPage, params?: { courseId?: string; mode?: "create" | "edit"; isInstructor?: boolean }) => {
     setCurrentPage(page);
-    setPageParams(params);
+    setPageParams(params || null);
   };
 
   useEffect(() => {
-    const checkToken = async () => {
-      if (accessToken) {
-        try {
-          const valid = await isValidToken();
-          setIsValid(valid);
-        } catch (error) {
-          console.error("Token validation error:", error);
-          setIsValid(false);
-        }
-      } else {
-        setIsValid(false);
+    const checkPaymentStatus = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentStatus = urlParams.get("payment");
+      const courseId = urlParams.get("courseId");
+
+      if (paymentStatus === "success" && courseId) {
+        alert("Payment successful! You now have access to the course.");
+        setCurrentPage("course-detail");
+        setPageParams({ courseId });
+      } else if (paymentStatus === "cancel") {
+        alert("Payment was cancelled.");
+        setCurrentPage("student-dashboard");
       }
-      setHasInitialAuthCheck(true);
+
+      // Remove params from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
     };
-    
-    if (!loading) {
-      checkToken();
-    }
-  }, [accessToken, isValidToken, loading]);
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get("payment");
-    const courseId = urlParams.get("courseId");
+    checkPaymentStatus();
+    window.addEventListener("popstate", checkPaymentStatus);
 
-    if (paymentStatus === "success" && courseId) {
-      alert("Payment successful! You now have access to the course.");
-      setCurrentPage("course-detail");
-      setPageParams({ courseId });
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (paymentStatus === "cancel") {
-      alert("Payment was cancelled.");
-      setCurrentPage("student-dashboard");
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    return () => {
+      window.removeEventListener("popstate", checkPaymentStatus);
+    };
   }, []);
 
   useEffect(() => {
-    if (hasInitialAuthCheck && (user || isValid) && currentPage === "landing") {
-      const targetPage = user?.role === "student" ? "student-dashboard" : "instructor-dashboard";
+    if (user && currentPage === "landing") {
+      const targetPage =
+        user?.role === "student" ? "student-dashboard" : "instructor-dashboard";
       setCurrentPage(targetPage);
     }
-  }, [user, isValid, currentPage, hasInitialAuthCheck]);
+  }, [user]); // Removed currentPage dependency to prevent infinite loops
 
-  if (loading || !hasInitialAuthCheck) {
+  if (loading && !loadingTimeout) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
 
-  const isAuthenticated = user !== null || isValid;
+  // Show error state if loading times out
+  if (loadingTimeout) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl text-red-400 mb-4">⚠️</div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Loading Timeout</h2>
+          <p className="text-gray-600 mb-4">The application is taking longer than expected to load.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isAuthenticated = user !== null;
 
   const protectedPages: AppPage[] = [
     "student-dashboard",
@@ -90,7 +114,8 @@ const App: React.FC = () => {
 
   if (isAuthenticated && user) {
     if (
-      (currentPage === "instructor-dashboard" || currentPage === "create-course") &&
+      (currentPage === "instructor-dashboard" ||
+        currentPage === "create-course") &&
       user.role !== "instructor"
     ) {
       return <UnauthorizedPage onNavigate={handleNavigate} />;
@@ -112,9 +137,12 @@ const App: React.FC = () => {
       case "instructor-dashboard":
         return <InstructorDashboard onNavigate={handleNavigate} />;
       case "create-course":
-        return <CreateCourse onNavigate={handleNavigate} params={pageParams} />;
+        return <CreateCourse onNavigate={handleNavigate} params={pageParams || undefined} />;
       case "course-detail":
-        return <CourseDetail onNavigate={handleNavigate} params={pageParams} />;
+        if (!pageParams?.courseId) {
+          return <UnauthorizedPage onNavigate={handleNavigate} />;
+        }
+        return <CourseDetail onNavigate={handleNavigate} params={{ courseId: pageParams.courseId, isInstructor: pageParams.isInstructor }} />;
       case "unauthorized":
         return <UnauthorizedPage onNavigate={handleNavigate} />;
       default:

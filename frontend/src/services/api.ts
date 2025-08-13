@@ -1,52 +1,6 @@
 
-// const API_BASE_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
-// // Helper function to get auth headers
-// export const getAuthHeaders = () => {
-//   const token = window.localStorage?.getItem('token');
-//   return {
-//     'Content-Type': 'application/json',
-//     ...(token && { 'Authorization': `Bearer ${token}` }),
-//   };
-// };
-
-// // Helper function to handle API responses
-// export const handleResponse = async (response: Response) => {
-//   const data = await response.json();
-
-//   if (!response.ok) {
-//     console.log(data.error)
-//     return data; // contains { error: "..."}
-//   }
-
-//   return data; // contains { message: "..."} or other success dat
-// };
-
-// // Auth API
-// export const authAPI = {
-//   login: async (email: string, password: string, role: 'student' | 'instructor') => {
-//     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       credentials: 'include',
-//       body: JSON.stringify({ email, password }),
-//     });
-//     return handleResponse(response);
-//   },
-
-//   register: async (email: string, password: string, firstName: string, lastName:string,role: 'student' | 'instructor') => {
-//     const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({ email, password, firstName,lastName,role}),
-//     });
-//     return handleResponse(response);
-//   },
-// };
-
-const API_BASE_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:3000';
-
-// Helper function to get auth headers
 export const getAuthHeaders = () => {
   const token = window.localStorage?.getItem('token');
   return {
@@ -55,7 +9,6 @@ export const getAuthHeaders = () => {
   };
 };
 
-// Helper function to handle API responses
 export const handleResponse = async (response: Response) => {
   const data = await response.json();
 
@@ -70,7 +23,6 @@ export const handleResponse = async (response: Response) => {
     };
   }
 
-  // For successful responses, ensure we have a consistent structure
   return { 
     ...data,
     success: true 

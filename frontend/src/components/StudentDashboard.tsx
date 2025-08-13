@@ -82,24 +82,31 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   }, [activeTab, selectedCategory]);
 
   const handlePurchaseCourse = async (courseId: string) => {
-  try {
-    setErrorMessage(null);
-    const paymentData = await paymentAPI.createCheckoutSession({
-      courseId,
-      successUrl: `${window.location.origin}/payment-success`,
-      cancelUrl: `${window.location.origin}/payment-cancel`,
-    });
+    try {
+      setErrorMessage(null);
+      // const paymentData = await paymentAPI.createCheckoutSession({
+      //   courseId,
+      //   successUrl: `${window.location.origin}/payment-success`,
+      //   cancelUrl: `${window.location.origin}/payment-cancel`,
+      // });
 
-    if (paymentData?.checkoutUrl) {
-      window.location.href = paymentData.checkoutUrl;
-    } else {
-      setErrorMessage("No checkout URL returned from payment service.");
+      const paymentData = await paymentAPI.createCheckoutSession({
+        courseId,
+        successUrl: `${window.location.origin}?payment=success&courseId=${courseId}`,
+        cancelUrl: `${window.location.origin}?payment=cancel`,
+      });
+
+      if (paymentData?.checkoutUrl) {
+        window.location.href = paymentData.checkoutUrl;
+      } else {
+        setErrorMessage("No checkout URL returned from payment service.");
+      }
+    } catch (error: any) {
+      setErrorMessage(
+        error.message || "Failed to initiate payment. Please try again."
+      );
     }
-  } catch (error: any) {
-    setErrorMessage(error.message || "Failed to initiate payment. Please try again.");
-  }
-};
-
+  };
 
   // Clear errors on tab or filter/search change
   const handleTabChange = (tab: "browse" | "my-courses") => {
@@ -136,7 +143,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700">
-                Welcome, {user?.name}
+                Welcome, {user?.firstName}
               </span>
               <button
                 onClick={handleLogout}

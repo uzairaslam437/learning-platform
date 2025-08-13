@@ -23,7 +23,6 @@ export interface AuthContextType {
   ) => Promise<void>;
   logout: () => void;
   loading: boolean;
-  isValidToken: () => Promise<boolean>;
 }
 
 export type AppPage = 
