@@ -110,6 +110,7 @@ async function handleFailedPayment(paymentIntent) {
 
 const createPaymentIntent = async (req, res) => {
   try {
+    console.log("create payment intent:",req.body)
     const { courseId } = req.body;
     const studentId = req.user.id;
 

@@ -75,6 +75,6 @@ router.delete(
 );
 
 router.get("/:courseId/enrollment-status", checkEnrollmentStatus);
-router.get("/courses", getInstructorCoursesOrStudentEnrollments);
+router.get("/user/my-courses", getInstructorCoursesOrStudentEnrollments);
 
 module.exports = router;

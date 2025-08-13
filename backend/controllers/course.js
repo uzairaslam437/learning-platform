@@ -17,7 +17,7 @@ const createCourse = async (req, res) => {
       title,
       description,
       price,
-      currency = "PKR",
+      currency = "USD",
       category,
       max_students,
       thumbnail_url,
@@ -38,12 +38,14 @@ const createCourse = async (req, res) => {
       });
     }
 
+    const courseStatus = 'published';
+
     const query = `
       INSERT INTO courses (
         instructor_id, title, description, price, currency, 
-        category, max_students, thumbnail_url
+        category, max_students, thumbnail_url,status
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9) 
       RETURNING *
     `;
 
@@ -56,6 +58,7 @@ const createCourse = async (req, res) => {
       category,
       max_students,
       thumbnail_url,
+      courseStatus
     ];
 
     const result = await pool.query(query, values);

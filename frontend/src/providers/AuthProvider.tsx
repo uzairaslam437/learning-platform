@@ -1,134 +1,184 @@
-import { useState,useEffect } from "react";
-import type { User } from "../types/Auth";
+import React, { useState, useEffect } from "react";
 import type { ReactNode } from "react";
+import type { User } from "../types/Auth";
+import { authAPI } from "../services/api";
 import { AuthContext } from "../contexts/AuthContext";
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessToken, setAccessToken] = useState<string | null>(() =>
+    localStorage.getItem("token")
+  );
 
   useEffect(() => {
-    // Check if user is logged in on app start
-    const token = window.localStorage?.getItem('token');
-    const userData = window.localStorage?.getItem('user');
-    
-    if (token && userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        window.localStorage?.removeItem('token');
-        window.localStorage?.removeItem('user');
+    const token = localStorage.getItem("token");
+    const userData = localStorage.getItem("user");
+
+    const verifyAndSetup = async () => {
+      if (token && userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          setAccessToken(token);
+          setUser(parsedUser);
+
+          // Check token validity with backend
+          const valid = await isValidToken();
+          if (!valid) {
+            logout();
+            return;
+          }
+
+          // Set token refresh interval
+          const interval = setInterval(refreshAccessToken, 14 * 60 * 1000);
+          return () => clearInterval(interval);
+        } catch (error) {
+          console.error("Error parsing user data:", error);
+          logout();
+        }
       }
-    }
-    
-    setLoading(false);
+
+      setLoading(false);
+    };
+
+    verifyAndSetup();
   }, []);
 
-  const login = async (email: string, password: string, role: 'student' | 'instructor') => {
+  // ✅ Login - FIXED: Don't set loading to true for form submissions
+  const login = async (
+    email: string,
+    password: string,
+    role: "student" | "instructor"
+  ) => {
     try {
-      setLoading(true);
+      const data = await authAPI.login(email, password, role);
       
-      // Replace with your actual API endpoint
-      const response = await fetch(`http://localhost:3000/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      console.log("AuthProvider login response:", data);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+      // Only proceed if login was successful
+      if (data.success && data.accessToken && data.user) {
+        localStorage.setItem("token", data.accessToken);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setAccessToken(data.accessToken);
+        setUser(data.user);
       }
 
-      const data = await response.json();
-      
-      // Store token and user data
-      if (window.localStorage) {
-        window.localStorage.setItem('token', data.token);
-        window.localStorage.setItem('user', JSON.stringify(data.user));
-      }
-      setUser(data.user);
+      return data;
     } catch (error) {
-    //   // For demo purposes, simulate successful login
-    //   const mockUser: User = {
-    //     id: '1',
-    //     email: email,
-    //     firstName: email.split('@')[0],
-    //     role: role,
-    //   };
-      
-    //   if (window.localStorage) {
-    //     window.localStorage.setItem('token', 'mock-token-' + Date.now());
-    //     window.localStorage.setItem('user', JSON.stringify(mockUser));
-    //   }
-    //   setUser(mockUser);
-    //   throw error; // Uncomment this when using real API
-        throw new Error(error);
-    } finally {
-      setLoading(false);
+      console.error("Login error in AuthProvider:", error);
+      return { 
+        error: "An unexpected error occurred during login",
+        success: false 
+      };
     }
   };
 
-  const register = async (email: string, password: string, firstName: string,lastName: string, role: 'student' | 'instructor') => {
+  // ✅ Register - FIXED: Don't set loading to true for form submissions
+  const register = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    role: "student" | "instructor"
+  ) => {
     try {
-      setLoading(true);
+      const data = await authAPI.register(
+        email,
+        password,
+        firstName,
+        lastName,
+        role
+      );
       
-      // Replace with your actual API endpoint
-      const response = await fetch(`http://localhost:3000/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, firstName,lastName,role}),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
-      }
-
-      const data = await response.json();
+      console.log("AuthProvider register response:", data);
       
-      // Store token and user data
-      if (window.localStorage) {
-        window.localStorage.setItem('token', data.token);
-        window.localStorage.setItem('user', JSON.stringify(data.user));
-      }
-      setUser(data.user);
+      return data;
     } catch (error) {
-      // For demo purposes, simulate successful registration
-    //   const mockUser: User = {
-    //     id: '1',
-    //     email: email,
-    //     name: name,
-    //     role: role,
-    //   };
-      
-    //   if (window.localStorage) {
-    //     window.localStorage.setItem('token', 'mock-token-' + Date.now());
-    //     window.localStorage.setItem('user', JSON.stringify(mockUser));
-    //   }
-    //   setUser(mockUser);
-      throw new error; // Uncomment this when using real API
-    } finally {
-      setLoading(false);
+      console.error("Register error in AuthProvider:", error);
+      return { 
+        error: "An unexpected error occurred during registration",
+        success: false 
+      };
     }
   };
 
+  // ✅ Logout
   const logout = () => {
-    if (window.localStorage) {
-      window.localStorage.removeItem('token');
-      window.localStorage.removeItem('user');
-    }
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
+    setAccessToken(null);
+  };
+
+  // ✅ Refresh Access Token
+  const refreshAccessToken = async () => {
+    try {
+      const res = await fetch(
+        "http://localhost:3000/api/auth/refresh-access-token",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      if (!res.ok) {
+        logout();
+        return;
+      }
+
+      const data = await res.json();
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setAccessToken(data.token);
+      setUser(data.user);
+    } catch (err) {
+      console.error("Token refresh failed:", err);
+      logout();
+    }
+  };
+
+  const isValidToken = async (): Promise<boolean> => {
+    try {
+      if (!accessToken) {
+        return false;
+      }
+
+      const res = await fetch(
+        "http://localhost:3000/api/auth/verify-access-token",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      if (!res.ok) {
+        return false;
+      }
+
+      const data = await res.json();
+      return data.message === true;
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      return false;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        register,
+        logout,
+        loading,
+        isValidToken,
+        accessToken,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

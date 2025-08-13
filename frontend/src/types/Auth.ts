@@ -8,6 +8,7 @@ export interface User {
 
 export interface AuthContextType {
   user: User | null;
+  accessToken: string | null;
   login: (
     email: string,
     password: string,
@@ -22,11 +23,16 @@ export interface AuthContextType {
   ) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  isValidToken: () => Promise<boolean>;
 }
 
-export type AppPage =
-  | "landing"
-  | "auth"
-  | "student-dashboard"
-  | "instructor-dashboard"
-  | "unauthorized";
+export type AppPage = 
+  | 'landing' 
+  | 'auth' 
+  | 'student-dashboard' 
+  | 'instructor-dashboard' 
+  | 'unauthorized'
+  | 'course-detail'
+  | 'create-course'
+  | 'manage-courses'
+  | 'my-courses';

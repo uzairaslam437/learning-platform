@@ -20,7 +20,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, params }) => {
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useAuth();
@@ -30,36 +31,72 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, params }) => {
       ...formData,
       [e.target.name]: e.target.value,
     });
-    if (error) setError("");
+    // Clear messages when user starts typing
+    if (errorMessage) setErrorMessage("");
+    if (successMessage) setSuccessMessage("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setErrorMessage("");
+    setSuccessMessage("");
 
     try {
+      let res;
+
       if (isLogin) {
-        await login(formData.email, formData.password, role);
+        res = await login(formData.email, formData.password, role);
+        console.log("AuthPage login response:", res);
       } else {
-        await register(
+        res = await register(
           formData.email,
           formData.password,
           formData.firstName,
           formData.lastName,
           role
         );
+        console.log("AuthPage register response:", res);
       }
 
-      // Navigate based on role
-      onNavigate(
-        role === "student" ? "student-dashboard" : "instructor-dashboard"
-      );
+      // Handle response
+      if (res?.error) {
+        setErrorMessage(res.error);
+        setSuccessMessage("");
+      } else if (res?.success) {
+        setSuccessMessage(
+          res?.message || `${isLogin ? "Login" : "Registration"} successful`
+        );
+        setErrorMessage("");
+
+        // Add a small delay before navigation to show success message
+        setTimeout(() => {
+          onNavigate(
+            role === "student" ? "student-dashboard" : "instructor-dashboard"
+          );
+        }, 1000);
+      } else {
+        setErrorMessage("An unexpected error occurred");
+      }
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      console.error("AuthPage error:", err);
+      setErrorMessage(err.message || "An unexpected error occurred");
+      setSuccessMessage("");
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleAuthMode = () => {
+    setIsLogin(!isLogin);
+    setErrorMessage("");
+    setSuccessMessage("");
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+    });
   };
 
   return (
@@ -75,6 +112,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, params }) => {
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{" "}
             <button
+              type="button"
               onClick={() => onNavigate("landing")}
               className="font-medium text-blue-600 hover:text-blue-500"
             >
@@ -82,6 +120,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, params }) => {
             </button>
           </p>
         </div>
+
+        {/* Success message */}
+        {successMessage && (
+          <div className="p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+            {successMessage}
+          </div>
+        )}
+
+        {/* Error message */}
+        {errorMessage && (
+          <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Role Selection */}
         <div className="flex rounded-lg bg-gray-100 p-1">
@@ -111,77 +163,54 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, params }) => {
           </button>
         </div>
 
-        <div className="mt-8 space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
-              {error}
-            </div>
-          )}
-
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-4">
             {!isLogin && (
-              <div>
-                <div>
-                  <label htmlFor="firstName" className="sr-only">
-                    First Name
-                  </label>
-                  <input
-                    id="firstName"
-                    name="firstName"
-                    type="text"
-                    required={!isLogin}
-                    className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                    placeholder="First Name"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="lastName" className="sr-only">
-                    Last Name
-                  </label>
-                  <input
-                    id="lastName"
-                    name="lastName"
-                    type="text"
-                    required={!isLogin}
-                    className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                    placeholder="last Name"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
+              <>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  required={!isLogin}
+                  className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="First Name"
+                  value={formData.firstName}
+                  onChange={handleInputChange}
+                />
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  required={!isLogin}
+                  className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Last Name"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                />
+              </>
             )}
 
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={formData.email}
-                onChange={handleInputChange}
-              />
-            </div>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              placeholder="Email address"
+              value={formData.email}
+              onChange={handleInputChange}
+            />
 
             <div className="relative">
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
               <input
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 required
-                className="appearance-none rounded-md relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-md relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleInputChange}
@@ -200,25 +229,22 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, params }) => {
             </div>
           </div>
 
-          <div>
-            <button
-              type="submit"
-              onClick={handleSubmit}
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <span>{isLogin ? "Sign in" : "Sign up"}</span>
-              )}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <span>{isLogin ? "Sign in" : "Sign up"}</span>
+            )}
+          </button>
 
           <div className="text-center">
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={toggleAuthMode}
               className="text-sm text-blue-600 hover:text-blue-500"
             >
               {isLogin
@@ -226,7 +252,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onNavigate, params }) => {
                 : "Already have an account? Sign in"}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

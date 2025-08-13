@@ -33,7 +33,7 @@ const initDb = async () => {
             title VARCHAR(255) NOT NULL,
             description TEXT,
             price DECIMAL(10,2) NOT NULL,
-            currency VARCHAR(3) DEFAULT 'PKR',
+            currency VARCHAR(3) DEFAULT 'USD',
             thumbnail_url VARCHAR(500),
             category VARCHAR(100),
             status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
